@@ -17,7 +17,7 @@ class _Page1State extends State<Page1> {
   int? _dailyPuffLimit;
   bool _exceedsLimit = false;
   List<DateTime> puffTimestamps = [];
-
+  bool clear = false;
   @override
   void initState() {
     super.initState();
@@ -224,6 +224,7 @@ class _Page1State extends State<Page1> {
         _puffGoal != 0 ? (_puffCount / _puffGoal).clamp(0.0, 1.0) : 0.0;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       floatingActionButton: FloatingActionButton(
         backgroundColor: kPrimaryColor,
         onPressed: _resetPuffCount,
@@ -238,20 +239,23 @@ class _Page1State extends State<Page1> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 20),
-                  _buildTitle(),
-                  const SizedBox(height: 60),
-                  _buildProgressIndicator(progress),
-                  const SizedBox(height: 20),
-                  HomeFlChart(
-                    puffTimestamps: puffTimestamps,
-                  ),
-                  const SizedBox(height: 40),
-                  _buildPuffButton(),
-                ],
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildTitle(),
+                    const SizedBox(height: 60),
+                    _buildProgressIndicator(progress),
+                    const SizedBox(height: 20),
+                    HomeFlChart(
+                      puffTimestamps: puffTimestamps,
+                      clear: clear,
+                    ),
+                    const SizedBox(height: 40),
+                    _buildPuffButton(),
+                  ],
+                ),
               ),
             ),
             Positioned(
@@ -385,17 +389,19 @@ class _Page1State extends State<Page1> {
     );
   }
 
-  // Function to reset puff count
-  void _resetPuffCount() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+  Future<void> _resetPuffCount() async {
+    final prefs = await SharedPreferences.getInstance();
+
     setState(() {
       _puffCount = 0;
-      final todayKey = _getTodayKey();
-      prefs.setInt(todayKey, 0);
-      _clearRecentData(prefs, 30);
-      puffTimestamps = [];
-
-      prefs.setBool('isFirstTime', true);
+      puffTimestamps.clear(); // Clear the timestamps as well
+      clear = true;
+      _exceedsLimit = false; // Reset limit warning
     });
+
+    // Save the cleared state in SharedPreferences
+    final todayKey = _getTodayKey();
+    await prefs.remove(todayKey);
+    await prefs.remove('puffTimestamps'); // Remove stored timestamps
   }
 }

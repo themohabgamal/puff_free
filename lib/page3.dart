@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:async'; // Add this import statement
 
+bool _showQuitDateScreen = false;
+
 class Page3 extends StatefulWidget {
   const Page3({super.key});
 
@@ -12,7 +14,6 @@ class Page3 extends StatefulWidget {
 }
 
 class _Page3State extends State<Page3> {
-  bool _showQuitDateScreen = false;
   bool showQuitPlan = false;
   showScreen() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -541,20 +542,32 @@ class _QuitPlanScreenState extends State<QuitPlanScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryColor,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 50, vertical: 15)),
-                      onPressed: () async {
-                        SharedPreferences prefs =
-                            await SharedPreferences.getInstance();
-                        await prefs.setBool('showQuitPlan', false);
-                        widget.onBack;
-                      },
-                      child: const Text("Cancel Plan",
-                          style: TextStyle(color: Colors.white, fontSize: 22))),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 50, vertical: 15),
+                    ),
+                    onPressed: () async {
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      // Clear all saved data related to the quit plan
+                      await prefs.remove('quit_date');
+                      await prefs.remove('days_from_today');
+                      await prefs.remove('daily_puffs');
+                      await prefs.remove('startTime');
+                      _showQuitDateScreen = false;
+
+                      setState(() {});
+                      widget.onBack();
+                    },
+                    child: const Text(
+                      "Cancel Plan",
+                      style: TextStyle(color: Colors.white, fontSize: 22),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -692,7 +705,8 @@ class QuitPlanResult extends StatelessWidget {
               children: [
                 ElevatedButton(
                   onPressed: () {
-                    // Action for Yes
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const YesAnswer()));
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryColor,
@@ -712,7 +726,8 @@ class QuitPlanResult extends StatelessWidget {
                 ),
                 OutlinedButton(
                   onPressed: () {
-                    // Action for No
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const NoAnswer()));
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: kPrimaryColor, width: 2),
@@ -881,7 +896,8 @@ class YesAnswer extends StatelessWidget {
               const SizedBox(height: 30.0),
               ElevatedButton(
                 onPressed: () {
-                  // Action for "Reset quit coach"
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const Page3()));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey[300],
@@ -979,7 +995,8 @@ class NoAnswer extends StatelessWidget {
               const SizedBox(height: 30.0),
               ElevatedButton(
                 onPressed: () {
-                  // Action for "Reset Quit Coach"
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const Page3()));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kPrimaryColor, // Button color

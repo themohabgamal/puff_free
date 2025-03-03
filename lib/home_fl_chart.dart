@@ -4,9 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:puff_free/const.dart';
 
 class HomeFlChart extends StatefulWidget {
-  final List<DateTime> puffTimestamps; // Accept puffTimestamps dynamically
-
-  const HomeFlChart({super.key, required this.puffTimestamps});
+  List<DateTime> puffTimestamps; // Accept puffTimestamps dynamically
+  final bool clear;
+  HomeFlChart({super.key, required this.puffTimestamps, required this.clear});
 
   @override
   State<HomeFlChart> createState() => _HomeFlChartState();
@@ -25,11 +25,18 @@ class _HomeFlChartState extends State<HomeFlChart> {
   // Method to load puff data from SharedPreferences
   Future<void> _loadPuffData() async {
     final prefs = await SharedPreferences.getInstance();
+    if (widget.clear) {
+      setState(() {
+        widget.puffTimestamps.clear();
+      });
+      return;
+    }
+
     final puffTimestampsStr = prefs.getStringList('puff_timestamps');
     if (puffTimestampsStr != null) {
       setState(() {
-        widget.puffTimestamps
-            .addAll(puffTimestampsStr.map((e) => DateTime.parse(e)).toList());
+        widget.puffTimestamps =
+            puffTimestampsStr.map((e) => DateTime.parse(e)).toList();
       });
     }
   }
@@ -50,33 +57,17 @@ class _HomeFlChartState extends State<HomeFlChart> {
 
   // Calculate puff distribution for the different parts of the day
   Map<String, int> calculatePuffDistribution() {
-    int morning = 0;
-    int afternoon = 0;
-    int evening = 0;
-    int night = 0;
+    int morning = 0, afternoon = 0, evening = 0, night = 0;
 
-    // Define time ranges for the parts of the day
-    DateTime morningStart = DateTime(
-        DateTime.now().year, DateTime.now().month, DateTime.now().day, 6, 0);
-    DateTime afternoonStart = DateTime(
-        DateTime.now().year, DateTime.now().month, DateTime.now().day, 12, 0);
-    DateTime eveningStart = DateTime(
-        DateTime.now().year, DateTime.now().month, DateTime.now().day, 18, 0);
-    DateTime nightStart = DateTime(
-        DateTime.now().year, DateTime.now().month, DateTime.now().day, 21, 0);
-
-    // Loop through puffTimestamps and categorize puffs
     for (var timestamp in widget.puffTimestamps) {
-      if (timestamp.isAfter(morningStart) &&
-          timestamp.isBefore(afternoonStart)) {
+      int hour = timestamp.hour;
+      if (hour >= 6 && hour < 12) {
         morning++;
-      } else if (timestamp.isAfter(afternoonStart) &&
-          timestamp.isBefore(eveningStart)) {
+      } else if (hour >= 12 && hour < 18) {
         afternoon++;
-      } else if (timestamp.isAfter(eveningStart) &&
-          timestamp.isBefore(nightStart)) {
+      } else if (hour >= 18 && hour < 21) {
         evening++;
-      } else if (timestamp.isAfter(nightStart)) {
+      } else {
         night++;
       }
     }
@@ -172,7 +163,13 @@ class _HomeFlChartState extends State<HomeFlChart> {
       fontWeight: FontWeight.bold,
       fontSize: 12,
     );
-    return Text('${value.toInt()}', style: style, textAlign: TextAlign.left);
+
+    // Only show labels for multiples of 5 and avoid negatives
+    if (value >= 0 && value % 5 == 0) {
+      return Text('${value.toInt()}', style: style, textAlign: TextAlign.left);
+    } else {
+      return const Text('');
+    }
   }
 
   LineChartData mainData(Map<String, int> puffDistribution) {
@@ -182,6 +179,10 @@ class _HomeFlChartState extends State<HomeFlChart> {
       puffDistribution['evening']?.toDouble() ?? 0.0,
       puffDistribution['night']?.toDouble() ?? 0.0,
     ];
+
+    double maxXValue = data.length - 1; // Dynamic maxX based on data count
+    double maxYValue = (data.reduce((a, b) => a > b ? a : b) + 5)
+        .clamp(10, 100); // Dynamic maxY with padding
 
     return LineChartData(
       gridData: FlGridData(
@@ -233,8 +234,9 @@ class _HomeFlChartState extends State<HomeFlChart> {
       ),
       minX: 0,
       maxX: 3, // 4 parts of the day
-      minY: 0,
-      maxY: widget.puffTimestamps.length.toDouble(),
+      minY: -6,
+      maxY: maxYValue,
+
       lineBarsData: [
         LineChartBarData(
           spots: List.generate(
@@ -262,75 +264,15 @@ class _HomeFlChartState extends State<HomeFlChart> {
   }
 
   LineChartData avgData() {
+    double avg =
+        widget.puffTimestamps.isEmpty ? 0 : widget.puffTimestamps.length / 4;
     return LineChartData(
-      gridData: const FlGridData(
-        show: true,
-        drawVerticalLine: true,
-        horizontalInterval: 2,
-        verticalInterval: 1,
-      ),
-      titlesData: FlTitlesData(
-        show: true,
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 22,
-            interval: 1,
-            getTitlesWidget: bottomTitleWidgets,
-          ),
-        ),
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 1,
-            getTitlesWidget: leftTitleWidgets,
-            reservedSize: 30,
-          ),
-        ),
-        topTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
-        rightTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
-      ),
-      borderData: FlBorderData(
-        show: true,
-        border: Border.all(color: const Color(0xff37434d)),
-      ),
-      minX: 0,
-      maxX: 3, // 4 parts of the day
-      minY: 0,
-      maxY: widget.puffTimestamps.length.toDouble(),
       lineBarsData: [
         LineChartBarData(
-          spots: const [
-            FlSpot(0, 4),
-            FlSpot(1, 4),
-            FlSpot(2, 4),
-            FlSpot(3, 4),
-          ],
+          spots: List.generate(4, (index) => FlSpot(index.toDouble(), avg)),
           isCurved: true,
-          gradient: LinearGradient(
-            colors: [
-              kPrimaryColor.withOpacity(0.5),
-              Colors.black.withOpacity(0.5),
-            ],
-          ),
+          gradient: LinearGradient(colors: gradientColors),
           barWidth: 4,
-          isStrokeCapRound: true,
-          dotData: const FlDotData(
-            show: false,
-          ),
-          belowBarData: BarAreaData(
-            show: true,
-            gradient: LinearGradient(
-              colors: [
-                kPrimaryColor.withOpacity(0.2),
-                Colors.black.withOpacity(0.2),
-              ],
-            ),
-          ),
         ),
       ],
     );

@@ -157,7 +157,7 @@ class _Page2State extends State<Page2> with SingleTickerProviderStateMixin {
         ),
         const SizedBox(height: 10),
         Expanded(
-          child: LineChart(_buildChartData(_last7DaysData)),
+          child: LineChart(_buildChartData(_last7DaysData, isWeek: true)),
         ),
       ],
     );
@@ -178,14 +178,14 @@ class _Page2State extends State<Page2> with SingleTickerProviderStateMixin {
         ),
         const SizedBox(height: 10),
         Expanded(
-          child: LineChart(_buildChartData(_last30DaysData)),
+          child: LineChart(_buildChartData(_last30DaysData, isWeek: false)),
         ),
       ],
     );
   }
 
-  LineChartData _buildChartData(List<Map<String, dynamic>> data) {
-    // Find the max puff value in the data for the y-axis limit
+  LineChartData _buildChartData(List<Map<String, dynamic>> data,
+      {required isWeek}) {
     final maxY = data.isNotEmpty
         ? data
             .map((e) => e['puffs'] as int)
@@ -193,8 +193,7 @@ class _Page2State extends State<Page2> with SingleTickerProviderStateMixin {
             .toDouble()
         : 10;
 
-    // Add padding to maxY to ensure lines stay inside the chart area
-    final paddedMaxY = maxY + (maxY * 0.2); // Increase padding to 20%
+    final paddedMaxY = maxY > 0 ? maxY + (maxY * 0.2) : 10; // Prevent zero maxY
 
     return LineChartData(
       gridData: FlGridData(
@@ -217,8 +216,10 @@ class _Page2State extends State<Page2> with SingleTickerProviderStateMixin {
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
-            interval: paddedMaxY / 5, // Adjust intervals for left titles
+            interval: paddedMaxY / 5,
             getTitlesWidget: (value, meta) {
+              if (value < 0)
+                return const SizedBox.shrink(); // Hide negative labels
               return Text(
                 value.toInt().toString(),
                 style: const TextStyle(
@@ -227,28 +228,35 @@ class _Page2State extends State<Page2> with SingleTickerProviderStateMixin {
                 ),
               );
             },
-            reservedSize: 40, // Space for left titles
+            reservedSize: 40,
           ),
         ),
         bottomTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
+            interval: isWeek ? 1 : 6, // Show every 7 days
             getTitlesWidget: (value, meta) {
-              final index = value.toInt();
+              int index = value.toInt();
               if (index >= 0 && index < data.length) {
-                final date = data[index]['date'] as DateTime;
+                DateTime date = data[index]['date'];
                 return Text(
-                  DateFormat('MMM d').format(date),
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 12,
-                  ),
+                  DateFormat('MMM d').format(date), // Format as "Feb 9"
+                  style: const TextStyle(color: Colors.black, fontSize: 12),
                 );
               }
               return const SizedBox.shrink();
             },
+
             reservedSize: 32, // Space for bottom titles
           ),
+        ),
+        topTitles: const AxisTitles(
+          // Hide top titles
+          sideTitles: SideTitles(showTitles: false),
+        ),
+        rightTitles: const AxisTitles(
+          // Hide right titles
+          sideTitles: SideTitles(showTitles: false),
         ),
       ),
       borderData: FlBorderData(
@@ -259,10 +267,9 @@ class _Page2State extends State<Page2> with SingleTickerProviderStateMixin {
         ),
       ),
       minX: 0,
-      maxX: data.isNotEmpty ? data.length - 1 : 1, // Prevent empty data error
-      minY: 0,
-      maxY:
-          paddedMaxY, // Use padded maxY to ensure the line stays inside bounds
+      maxX: data.length > 1 ? (data.length - 1).toDouble() : 1,
+      minY: -6,
+      maxY: double.parse(paddedMaxY.toStringAsFixed(0)),
       lineBarsData: [
         LineChartBarData(
           spots: data

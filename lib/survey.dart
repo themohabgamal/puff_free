@@ -620,6 +620,22 @@ class ResultPage extends StatelessWidget {
 class FinalSurveyPage extends StatelessWidget {
   const FinalSurveyPage({super.key});
 
+  Future<int> getTotalScore() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('vaping_addiction_score') ??
+        0; // Default to 0 if no score is saved
+  }
+
+  String getAddictionLevel(int totalScore) {
+    if (totalScore <= 6) {
+      return "Based on your answers, there is an indication that you have a Low addiction level to vaping.";
+    } else if (totalScore <= 14) {
+      return "Based on your answers, there is a strong indication that you have a Medium addiction level to vaping.";
+    } else {
+      return "Based on your answers, there is a strong indication that you have a High addiction level to vaping.";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -631,7 +647,6 @@ class FinalSurveyPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Header with an icon
               Container(
                 padding: const EdgeInsets.all(20.0),
                 decoration: BoxDecoration(
@@ -646,21 +661,40 @@ class FinalSurveyPage extends StatelessWidget {
               ),
               const SizedBox(height: 30),
 
-              // Main text
-              //TODO: Add Addiction Indicator
-              const Text(
-                'Based on your answers, there is a strong indication that you are addicted to vaping.',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Nunito',
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.center,
+              // Main text with FutureBuilder
+              FutureBuilder<int>(
+                future: getTotalScore(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return const Text(
+                      "Error loading score",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Nunito',
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    );
+                  } else {
+                    return Text(
+                      getAddictionLevel(snapshot.data ?? 0),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Nunito',
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    );
+                  }
+                },
               ),
+
               const SizedBox(height: 20),
 
-              // Supportive subtext
               const Text(
                 'We can help you quit vaping by creating a personalized plan tailored to your habits.',
                 style: TextStyle(
@@ -672,22 +706,6 @@ class FinalSurveyPage extends StatelessWidget {
               ),
               const SizedBox(height: 40),
 
-              // Image for motivation
-              Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // Action Button
               ElevatedButton(
                 onPressed: () {
                   Navigator.pushReplacement(
